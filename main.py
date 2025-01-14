@@ -22,15 +22,25 @@ daily_message = "🚨الكويز سيبدأ بعد 5 دقائق!   https://t.me
 
 # تحميل قائمة المستخدمين من ملف JSON
 def load_users():
-    if os.path.exists(USER_LIST_FILE):
-        with open(USER_LIST_FILE, "r") as file:
-            return json.load(file)
+    try:
+        if os.path.exists(USER_LIST_FILE):
+            with open(USER_LIST_FILE, "r") as file:
+                users = json.load(file)
+                print(f"✅ تم تحميل {len(users)} مستخدم من users.json")
+                return users
+        print("⚠️ ملف users.json غير موجود. سيتم إنشاء ملف جديد.")
+    except Exception as e:
+        print(f"⚠️ حدث خطأ أثناء تحميل المستخدمين: {e}")
     return []
 
 # حفظ قائمة المستخدمين إلى ملف JSON
 def save_users(users):
-    with open(USER_LIST_FILE, "w") as file:
-        json.dump(users, file)
+    try:
+        with open(USER_LIST_FILE, "w") as file:
+            json.dump(users, file)
+        print("✅ تم حفظ المستخدمين بنجاح في users.json")
+    except Exception as e:
+        print(f"⚠️ حدث خطأ أثناء حفظ المستخدمين: {e}")
 
 # قائمة المستخدمين المسجلين
 users = load_users()
@@ -83,11 +93,13 @@ def register_command(message):
 def unregister_command(message):
     user_id = message.chat.id
     if user_id in users:
-        users.remove(user_id)
-        save_users(users)
+        users.remove(user_id)  # إزالة المستخدم من القائمة
+        save_users(users)  # حفظ القائمة بعد التحديث
         bot.send_message(user_id, "❌ تم إلغاء تسجيلك بنجاح.")
+        print(f"✅ المستخدم {user_id} تم إلغاء تسجيله بنجاح.")  # سجل للإشارة إلى النجاح
     else:
         bot.send_message(user_id, "❗ أنت غير مسجل.")
+        print(f"⚠️ المستخدم {user_id} حاول إلغاء التسجيل ولكنه غير موجود في القائمة.")
 
 # إرسال الإشعارات اليومية
 async def send_notifications():
