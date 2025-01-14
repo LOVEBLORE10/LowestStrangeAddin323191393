@@ -15,20 +15,14 @@ app = Flask(__name__)
 
 
 
+nest_asyncio.apply()
 bot = telebot.TeleBot("7759339595:AAFYP-XGO9voQE6J5lB2OPnZHxz7MSxJxSM")
 
 @app.route('/bot_webhook', methods=['POST'])
 def bot_webhook():
-  bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode('utf-8'))])
-  return 'OK'
-
-
-@app.route('/set_app', methods=['GET'])
-def set_app():
-  bot.remove_webhook()
+@@ -30,48 +29,55 @@
   bot.set_webhook("https://" + request.host + "/bot_webhook")
   return 'Done'
-
 
 @bot.message_handler()
 def Myfunc(message):
