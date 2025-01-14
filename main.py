@@ -3,55 +3,22 @@ import json
 import asyncio
 from telegram.ext import Application, CommandHandler
 import nest_asyncio
-from flask import Flask
-from threading import Thread
+from flask import Flask, request
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request
 import telebot
 
-
+# إعداد Flask
 app = Flask(__name__)
 
-
-@app.route('/bot_webhook', methods=['POST'])
-def bot_webhook():
-  BOT_TOKEN.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode('utf-8'))])
-  return 'OK'
-
-
-@app.route('/set_app', methods=['GET'])
-def set_app():
-  BOT_TOKEN.remove_webhook()
-  BOT_TOKEN.set_webhook("https://" + request.host + "/bot_webhook")
-  return 'Done'
-
-
-
-# إصلاح مشاكل الحلقات في Replit
-nest_asyncio.apply()
-
-# خادم Flask لتفعيل الرابط
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "البوت يعمل بنجاح 🚀!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
+# إعداد التوكن
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # جلب التوكن من متغيرات البيئة
+bot = telebot.TeleBot(BOT_TOKEN)
 
 # ملف لتخزين المستخدمين
 USER_LIST_FILE = "users.json"
 
 # النص الافتراضي للإشعارات
 daily_message = "🚨الكويز سيبدأ بعد 5 دقائق!   https://t.me/STEP_5117"
-
-@@ -130,26 +147,25 @@
-
 
 # تحميل قائمة المستخدمين من ملف JSON
 def load_users():
@@ -68,71 +35,62 @@ def save_users(users):
 # قائمة المستخدمين المسجلين
 users = load_users()
 
-# أمر /start
-async def start(update, context):
-    await update.message.reply_text(
+# صفحة التحقق
+@app.route('/')
+def home():
+    return "البوت يعمل بنجاح 🚀!", 200
+
+# نقطة webhook لتلقي التحديثات
+@app.route('/bot_webhook', methods=['POST'])
+def bot_webhook():
+    try:
+        json_update = request.stream.read().decode("utf-8")
+        update = telebot.types.Update.de_json(json_update)
+        bot.process_new_updates([update])
+    except Exception as e:
+        print(f"Error in webhook: {e}")
+    return "OK", 200
+
+# إعداد webhook
+@app.route('/set_webhook', methods=['GET'])
+def set_webhook():
+    webhook_url = f"https://{request.host}/bot_webhook"
+    bot.remove_webhook()
+    bot.set_webhook(url=webhook_url)
+    return f"Webhook set to {webhook_url}", 200
+
+# أوامر Telegram
+@bot.message_handler(commands=["start"])
+def start_command(message):
+    bot.send_message(
+        message.chat.id,
         "مرحبًا! أنا البوت الخاص بك 🎉.\n"
         "استخدم /register للتسجيل و /unregister لإلغاء التسجيل.\n"
         "سأذكرك يوميًا في الساعة 8:25 مساءً إذا كنت مسجلًا."
     )
 
-# أمر /register لتسجيل المستخدم
-async def register(update, context):
-    user_id = update.effective_user.id
+@bot.message_handler(commands=["register"])
+def register_command(message):
+    user_id = message.chat.id
     if user_id not in users:
         users.append(user_id)
         save_users(users)
-        await update.message.reply_text("✅ تم تسجيلك بنجاح! سأذكرك يوميًا في الساعة 8:25 مساءً.")
+        bot.send_message(user_id, "✅ تم تسجيلك بنجاح! سأذكرك يوميًا في الساعة 8:25 مساءً.")
     else:
-        await update.message.reply_text("❗ أنت مسجل بالفعل!")
+        bot.send_message(user_id, "❗ أنت مسجل بالفعل!")
 
-# أمر /unregister لإلغاء تسجيل المستخدم
-async def unregister(update, context):
-    user_id = update.effective_user.id
+@bot.message_handler(commands=["unregister"])
+def unregister_command(message):
+    user_id = message.chat.id
     if user_id in users:
         users.remove(user_id)
         save_users(users)
-        await update.message.reply_text("❌ تم إلغاء تسجيلك بنجاح.")
+        bot.send_message(user_id, "❌ تم إلغاء تسجيلك بنجاح.")
     else:
-        await update.message.reply_text("❗ أنت غير مسجل.")
-
-# أمر /broadcast لإرسال رسالة جماعية
-async def broadcast(update, context):
-    admin_id = 1829361616  # استبدل هذا برقم المستخدم الخاص بك
-    if update.effective_user.id != admin_id:
-        await update.message.reply_text("❌ هذا الأمر مخصص للمسؤول فقط.")
-        return
-
-    if not context.args:
-        await update.message.reply_text("❌ الرجاء كتابة الرسالة: /broadcast <message>")
-        return
-
-    message = " ".join(context.args)
-    for user_id in users:
-        try:
-            await context.bot.send_message(chat_id=user_id, text=f"📢 رسالة إدارية:\n{message}")
-        except Exception as e:
-            print(f"⚠️ لم أتمكن من إرسال الرسالة إلى {user_id}: {e}")
-
-    await update.message.reply_text("✅ تم إرسال الرسالة إلى جميع المستخدمين.")
-
-# أمر /set_daily_message لتغيير نص الإشعارات اليومية
-async def set_daily_message(update, context):
-    global daily_message
-    admin_id = 1829361616  # استبدل هذا برقم المستخدم الخاص بك
-    if update.effective_user.id != admin_id:
-        await update.message.reply_text("❌ هذا الأمر مخصص للمسؤول فقط.")
-        return
-
-    if not context.args:
-        await update.message.reply_text("❌ الرجاء كتابة الرسالة: /set_daily_message <message>")
-        return
-
-    daily_message = " ".join(context.args)
-    await update.message.reply_text("✅ تم تحديث نص الإشعارات اليومية.")
+        bot.send_message(user_id, "❗ أنت غير مسجل.")
 
 # إرسال الإشعارات اليومية
-async def send_notifications(application):
+async def send_notifications():
     while True:
         now = datetime.now()
         target_time = datetime(now.year, now.month, now.day, 20, 25)  # وقت الإشعار 8:25 مساءً
@@ -144,31 +102,11 @@ async def send_notifications(application):
 
         for user_id in users:
             try:
-                await application.bot.send_message(chat_id=user_id, text=daily_message)
+                bot.send_message(user_id, daily_message)
             except Exception as e:
                 print(f"⚠️ لم أتمكن من إرسال رسالة إلى المستخدم {user_id}: {e}")
 
-# الوظيفة الرئيسية لتشغيل البوت
-async def main():
-    BOT_TOKEN = os.getenv("BOT_TOKEN")  # جلب التوكن من المتغيرات البيئية
-    application = Application.builder().token(BOT_TOKEN).build()
-
-    # إضافة الأوامر
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("register", register))
-    application.add_handler(CommandHandler("unregister", unregister))
-    application.add_handler(CommandHandler("broadcast", broadcast))
-    application.add_handler(CommandHandler("set_daily_message", set_daily_message))
-
-    # تشغيل خادم Flask
-    keep_alive()
-
-    # تشغيل إشعارات التذكير
-    asyncio.create_task(send_notifications(application))
-
-    # بدء البوت
-    await application.run_polling()
-
+# تشغيل Flask
 if __name__ == "__main__":
-    asyncio.run(main())
-    app.run(debug=True)
+    asyncio.create_task(send_notifications())
+    app.run(host="0.0.0.0", port=8000)
