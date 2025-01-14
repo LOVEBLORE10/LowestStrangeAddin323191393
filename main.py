@@ -1,9 +1,7 @@
 import os
 import json
 import asyncio
-from telegram.ext import Application, CommandHandler
-import nest_asyncio
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
 from datetime import datetime, timedelta
 import telebot
 
@@ -12,32 +10,34 @@ app = Flask(__name__)
 
 # إعداد التوكن
 BOT_TOKEN = os.getenv("BOT_TOKEN")  # جلب التوكن من متغيرات البيئة
+if not BOT_TOKEN:
+    raise ValueError("⚠️ BOT_TOKEN is not set in environment variables!")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # ملف لتخزين المستخدمين
 USER_LIST_FILE = "users.json"
 
 # النص الافتراضي للإشعارات
-daily_message = "🚨الكويز سيبدأ بعد 5 دقائق!   https://t.me/STEP_5117"
+daily_message = "🚨 الكويز سيبدأ بعد 5 دقائق!   https://t.me/STEP_5117"
 
 # تحميل قائمة المستخدمين من ملف JSON
 def load_users():
-    try:
-        if os.path.exists(USER_LIST_FILE):
+    if os.path.exists(USER_LIST_FILE):
+        try:
             with open(USER_LIST_FILE, "r") as file:
                 users = json.load(file)
                 print(f"✅ تم تحميل {len(users)} مستخدم من users.json")
                 return users
-        print("⚠️ ملف users.json غير موجود. سيتم إنشاء ملف جديد.")
-    except Exception as e:
-        print(f"⚠️ حدث خطأ أثناء تحميل المستخدمين: {e}")
+        except Exception as e:
+            print(f"⚠️ حدث خطأ أثناء تحميل المستخدمين: {e}")
+    print("⚠️ ملف users.json غير موجود. سيتم إنشاء ملف جديد.")
     return []
 
 # حفظ قائمة المستخدمين إلى ملف JSON
 def save_users(users):
     try:
         with open(USER_LIST_FILE, "w") as file:
-            json.dump(users, file)
+            json.dump(users, file, indent=4)
         print("✅ تم حفظ المستخدمين بنجاح في users.json")
     except Exception as e:
         print(f"⚠️ حدث خطأ أثناء حفظ المستخدمين: {e}")
@@ -45,10 +45,16 @@ def save_users(users):
 # قائمة المستخدمين المسجلين
 users = load_users()
 
-# صفحة التحقق
+# صفحة التحقق الرئيسية
 @app.route('/')
 def home():
     return "البوت يعمل بنجاح 🚀!", 200
+
+# معالجة favicon.ico
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 # نقطة webhook لتلقي التحديثات
 @app.route('/bot_webhook', methods=['POST'])
@@ -58,7 +64,7 @@ def bot_webhook():
         update = telebot.types.Update.de_json(json_update)
         bot.process_new_updates([update])
     except Exception as e:
-        print(f"Error in webhook: {e}")
+        print(f"⚠️ خطأ في webhook: {e}")
     return "OK", 200
 
 # إعداد webhook
@@ -67,7 +73,7 @@ def set_webhook():
     webhook_url = f"https://{request.host}/bot_webhook"
     bot.remove_webhook()
     bot.set_webhook(url=webhook_url)
-    return f"Webhook set to {webhook_url}", 200
+    return f"✅ Webhook set to {webhook_url}", 200
 
 # أوامر Telegram
 @bot.message_handler(commands=["start"])
@@ -93,13 +99,13 @@ def register_command(message):
 def unregister_command(message):
     user_id = message.chat.id
     if user_id in users:
-        users.remove(user_id)  # إزالة المستخدم من القائمة
-        save_users(users)  # حفظ القائمة بعد التحديث
+        users.remove(user_id)
+        save_users(users)
         bot.send_message(user_id, "❌ تم إلغاء تسجيلك بنجاح.")
-        print(f"✅ المستخدم {user_id} تم إلغاء تسجيله بنجاح.")  # سجل للإشارة إلى النجاح
+        print(f"✅ المستخدم {user_id} تم إلغاء تسجيله.")
     else:
         bot.send_message(user_id, "❗ أنت غير مسجل.")
-        print(f"⚠️ المستخدم {user_id} حاول إلغاء التسجيل ولكنه غير موجود في القائمة.")
+        print(f"⚠️ المستخدم {user_id} حاول إلغاء التسجيل ولكنه غير موجود.")
 
 # إرسال الإشعارات اليومية
 async def send_notifications():
@@ -120,5 +126,9 @@ async def send_notifications():
 
 # تشغيل Flask
 if __name__ == "__main__":
+    # إنشاء مجلد static وإضافة favicon.ico إذا لزم الأمر
+    static_path = os.path.join(app.root_path, "static")
+    if not os.path.exists(static_path):
+        os.makedirs(static_path)
     asyncio.create_task(send_notifications())
     app.run(host="0.0.0.0", port=8000)
