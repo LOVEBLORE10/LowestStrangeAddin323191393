@@ -1,6 +1,8 @@
 import os
 import json
 import asyncio
+from telegram.ext import Application, CommandHandler
+import nest_asyncio
 from flask import Flask, request
 from datetime import datetime, timedelta
 import telebot
@@ -26,18 +28,16 @@ def load_users():
                 users = json.load(file)
                 print(f"✅ تم تحميل {len(users)} مستخدم من users.json")
                 return users
-        else:
-            print("⚠️ ملف users.json غير موجود. سيتم إنشاء ملف جديد.")
-            return []
+        print("⚠️ ملف users.json غير موجود. سيتم إنشاء ملف جديد.")
     except Exception as e:
         print(f"⚠️ حدث خطأ أثناء تحميل المستخدمين: {e}")
-        return []
+    return []
 
 # حفظ قائمة المستخدمين إلى ملف JSON
 def save_users(users):
     try:
         with open(USER_LIST_FILE, "w") as file:
-            json.dump(users, file, indent=4)  # حفظ المستخدمين مع تنسيق جميل للملف
+            json.dump(users, file)
         print("✅ تم حفظ المستخدمين بنجاح في users.json")
     except Exception as e:
         print(f"⚠️ حدث خطأ أثناء حفظ المستخدمين: {e}")
