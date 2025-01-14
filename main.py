@@ -10,25 +10,8 @@ from flask import Flask, render_template, request
 import telebot
 
 
-
-app = Flask(__name__)
-
-
-
+# إصلاح مشاكل الحلقات في Replit
 nest_asyncio.apply()
-bot = telebot.TeleBot("7759339595:AAFYP-XGO9voQE6J5lB2OPnZHxz7MSxJxSM")
-
-@app.route('/bot_webhook', methods=['POST'])
-def bot_webhook():
-@@ -30,48 +29,55 @@
-  bot.set_webhook("https://" + request.host + "/bot_webhook")
-  return 'Done'
-
-@bot.message_handler()
-def Myfunc(message):
-  bot.send_message(message.chat.id, "Hi, What's happend?")
-
-
 
 # خادم Flask لتفعيل الرابط
 app = Flask('')
@@ -132,7 +115,7 @@ async def set_daily_message(update, context):
 async def send_notifications(application):
     while True:
         now = datetime.now()
-        target_time = datetime(now.year, now.month, now.day, 1, 27)  # وقت الإشعار 8:25 مساءً
+        target_time = datetime(now.year, now.month, now.day, 20, 25)  # وقت الإشعار 8:25 مساءً
         if now > target_time:
             target_time += timedelta(days=1)
 
@@ -168,4 +151,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
     app.run(debug=True)
