@@ -115,7 +115,7 @@ def unregister_command(message):
 async def send_notifications():
     while True:
         now = datetime.now()
-        target_time = datetime(now.year, now.month, now.day, 20, 25)  # وقت الإشعار 8:25 مساءً
+        target_time = datetime(now.year, now.month, now.day, 18, 40)  # وقت الإشعار 8:25 مساءً
         if now > target_time:
             target_time += timedelta(days=1)
 
