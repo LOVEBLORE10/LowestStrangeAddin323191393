@@ -88,3 +88,6 @@ def unregister_command(message):
         bot.send_message(user_id, "❌ تم إلغاء تسجيلك بنجاح.")
     else:
         bot.send_message(user_id, "❗ أنت غير مسجل.")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
