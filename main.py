@@ -10,6 +10,8 @@ app = Flask(__name__)
 
 # إعداد التوكن
 BOT_TOKEN = os.getenv("BOT_TOKEN")  # جلب التوكن من متغيرات البيئة
+if not BOT_TOKEN:
+    raise ValueError("⚠️ BOT_TOKEN is not set in environment variables!")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # ملف لتخزين المستخدمين
@@ -20,27 +22,15 @@ daily_message = "🚨الكويز سيبدأ بعد 5 دقائق!   https://t.me
 
 # تحميل قائمة المستخدمين من ملف JSON
 def load_users():
-    try:
-        if os.path.exists(USER_LIST_FILE):
-            with open(USER_LIST_FILE, "r") as file:
-                users = json.load(file)
-                print(f"✅ تم تحميل {len(users)} مستخدم من users.json")
-                return users
-        else:
-            print("⚠️ ملف users.json غير موجود. سيتم إنشاء ملف جديد.")
-            return []
-    except Exception as e:
-        print(f"⚠️ حدث خطأ أثناء تحميل المستخدمين: {e}")
-        return []
+    if os.path.exists(USER_LIST_FILE):
+        with open(USER_LIST_FILE, "r") as file:
+            return json.load(file)
+    return []
 
 # حفظ قائمة المستخدمين إلى ملف JSON
 def save_users(users):
-    try:
-        with open(USER_LIST_FILE, "w") as file:
-            json.dump(users, file, indent=4)  # حفظ المستخدمين مع تنسيق جميل للملف
-        print("✅ تم حفظ المستخدمين بنجاح في users.json")
-    except Exception as e:
-        print(f"⚠️ حدث خطأ أثناء حفظ المستخدمين: {e}")
+    with open(USER_LIST_FILE, "w") as file:
+        json.dump(users, file, indent=4)
 
 # قائمة المستخدمين المسجلين
 users = load_users()
@@ -53,12 +43,9 @@ def home():
 # نقطة webhook لتلقي التحديثات
 @app.route('/bot_webhook', methods=['POST'])
 def bot_webhook():
-    try:
-        json_update = request.stream.read().decode("utf-8")
-        update = telebot.types.Update.de_json(json_update)
-        bot.process_new_updates([update])
-    except Exception as e:
-        print(f"Error in webhook: {e}")
+    json_update = request.stream.read().decode("utf-8")
+    update = telebot.types.Update.de_json(json_update)
+    bot.process_new_updates([update])
     return "OK", 200
 
 # إعداد webhook
@@ -72,12 +59,7 @@ def set_webhook():
 # أوامر Telegram
 @bot.message_handler(commands=["start"])
 def start_command(message):
-    bot.send_message(
-        message.chat.id,
-        "مرحبًا! أنا البوت الخاص بك 🎉.\n"
-        "استخدم /register للتسجيل و /unregister لإلغاء التسجيل.\n"
-        "سأذكرك يوميًا في الساعة 8:25 مساءً إذا كنت مسجلًا."
-    )
+    bot.send_message(message.chat.id, "مرحبًا! استخدم /register للتسجيل و /unregister لإلغاء التسجيل.")
 
 @bot.message_handler(commands=["register"])
 def register_command(message):
@@ -85,7 +67,7 @@ def register_command(message):
     if user_id not in users:
         users.append(user_id)
         save_users(users)
-        bot.send_message(user_id, "✅ تم تسجيلك بنجاح! سأذكرك يوميًا في الساعة 8:25 مساءً.")
+        bot.send_message(user_id, "✅ تم تسجيلك بنجاح!")
     else:
         bot.send_message(user_id, "❗ أنت مسجل بالفعل!")
 
@@ -93,30 +75,23 @@ def register_command(message):
 def unregister_command(message):
     user_id = message.chat.id
     if user_id in users:
-        users.remove(user_id)  # إزالة المستخدم من القائمة
-        save_users(users)  # حفظ القائمة بعد التحديث
+        users.remove(user_id)
+        save_users(users)
         bot.send_message(user_id, "❌ تم إلغاء تسجيلك بنجاح.")
-        print(f"✅ المستخدم {user_id} تم إلغاء تسجيله بنجاح.")  # سجل للإشارة إلى النجاح
     else:
         bot.send_message(user_id, "❗ أنت غير مسجل.")
-        print(f"⚠️ المستخدم {user_id} حاول إلغاء التسجيل ولكنه غير موجود في القائمة.")
 
 # إرسال الإشعارات اليومية
 async def send_notifications():
     while True:
         now = datetime.now()
-        target_time = datetime(now.year, now.month, now.day, 17, 42)  # وقت الإشعار 8:25 مساءً
+        target_time = datetime(now.year, now.month, now.day, 20, 25)
         if now > target_time:
             target_time += timedelta(days=1)
-
         wait_time = (target_time - now).total_seconds()
         await asyncio.sleep(wait_time)
-
         for user_id in users:
-            try:
-                bot.send_message(user_id, daily_message)
-            except Exception as e:
-                print(f"⚠️ لم أتمكن من إرسال رسالة إلى المستخدم {user_id}: {e}")
+            bot.send_message(user_id, daily_message)
 
 # تشغيل Flask
 if __name__ == "__main__":
