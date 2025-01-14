@@ -50,6 +50,9 @@ USER_LIST_FILE = "users.json"
 # النص الافتراضي للإشعارات
 daily_message = "🚨الكويز سيبدأ بعد 5 دقائق!   https://t.me/STEP_5117"
 
+@@ -130,26 +147,25 @@
+
+
 # تحميل قائمة المستخدمين من ملف JSON
 def load_users():
     if os.path.exists(USER_LIST_FILE):
