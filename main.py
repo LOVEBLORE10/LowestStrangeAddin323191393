@@ -10,6 +10,23 @@ from flask import Flask, render_template, request
 import telebot
 
 
+app = Flask(__name__)
+
+
+@app.route('/bot_webhook', methods=['POST'])
+def bot_webhook():
+  BOT_TOKEN.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode('utf-8'))])
+  return 'OK'
+
+
+@app.route('/set_app', methods=['GET'])
+def set_app():
+  BOT_TOKEN.remove_webhook()
+  BOT_TOKEN.set_webhook("https://" + request.host + "/bot_webhook")
+  return 'Done'
+
+
+
 # إصلاح مشاكل الحلقات في Replit
 nest_asyncio.apply()
 
@@ -151,5 +168,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
     app.run(debug=True)
